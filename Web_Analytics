@@ -1,0 +1,91 @@
+✈️ ABC Holidays — Website Analytics Case Study
+
+From raw clickstream to boardroom insight: SQL sessionization → star schema → Power BI dashboard.
+
+📌 Overview
+
+ABC Holidays, a UK travel website, had a flat clickstream file and one question: why aren't visitors booking?
+This project models 38,097 page views (1–8 June 2022) into a clean analytical model, builds an interactive Power BI report, and turns the findings into clear, prioritised recommendations for the website owner.
+
+The raw file has no session ID, no page type, no channel and no funnel stage. Everything analytical was derived from two free-text URL columns.
+
+🔑 Headline Findings
+Metric	Value
+Total page views	38.10K
+Sessions	5.95K
+Unique visitors	4.42K
+Avg. session duration	5.45 min
+Avg. pages / session	6.40
+Bounce rate	30%
+Conversion rate	0.27%
+Checkout abandonment	95.7%
+What the data says
+Checkout is the leak. Of 3,854 visitors who browsed, 243 reached checkout, 104 reached sign-in and only 11 completed a booking. The biggest single drop is checkout → sign-in (−57%).
+Interest isn't the problem. Visitors browse for 5+ minutes across 6+ pages, with Hotels, Package-Detail and Flights leading. The issue is conversion mechanics, not attention.
+Paid channels produced zero bookings. Paid Social (246 sessions) and Paid Search (87) converted nobody, while Organic Search and Direct drove the bookings.
+Returning visitors are gold. About 19.5% of visitors return, and they convert 5× better than new ones (0.70% vs 0.14%).
+Mobile dominates traffic. 62.5% of sessions are on mobile, 34.6% on desktop.
+💡 Recommendations
+🔧 Audit the checkout → sign-in transition first. Recovering just 20% of that drop-off would roughly double bookings, with no extra acquisition spend.
+💸 Re-evaluate paid social/search spend and track it over a longer window before cutting budget.
+🔁 Build a retention / remarketing programme for first-time, non-converting visitors.
+🛑 Hold off on top-of-funnel content work. Browse engagement is already healthy.
+🏗️ Data Model
+
+
+A star schema built in SQL, with raw URLs parsed once during staging so the fact table stores only compact integer keys.
+
+                 Dim_Date
+                    │
+Dim_Campaign ── Fact_PageView ── Dim_Page
+                    │
+              Dim_Referrer
+                    │
+        Dim_Session ─── Dim_Visitor
+Table	Grain	Purpose
+Fact_PageView	1 row per page view (38,097)	Events, with keys to every dimension, sequence in session and exit-page flag
+Dim_Session	1 row per session (5,949)	Device, funnel stages reached, conversion flag
+Dim_Visitor	1 row per visitor (4,415)	New vs. returning behaviour
+Dim_Page	1 row per page type	Browse, checkout, sign-in and booking categories
+Dim_Referrer	1 row per referrer / channel	Direct, Organic, Paid, Internal and so on
+Dim_Campaign	1 row per UTM combination	Source, medium, campaign
+Dim_Date	1 row per day	Calendar attributes, weekend flag
+FunnelStages	4 rows	Disconnected helper table that drives the funnel visual's DAX
+⚙️ Key Design Decisions
+Sessionization in SQL, not Power Query. LAG() plus a windowed SUM() flags a new session after 30 minutes of inactivity, the same default Google Analytics uses. Power Query has no previous-row function and needs an 8-step workaround. SQL also scales to the production dataset (about 1 billion rows), which a single-machine Power Query refresh would not.
+Three grains, three questions. Page view (what happened on a click), session (what happened in a visit) and visitor (the whole relationship with the site).
+Star schema over a flat table. Smaller and faster for the VertiPaq engine, and each meaning ("Organic Search", "Home") is stored once, not repeated across thousands of rows.
+Rule-based classification. Page types are inferred from URL patterns. Channels come from referrer domain plus gclid / fbclid / utm_* parameters. Device type comes from the user agent.
+📊 Power BI Dashboard
+
+
+
+Five interactive pages with live slicers (e.g. Weekend, Device Type):
+
+Page	What it answers
+Executive Overview	KPIs, daily traffic trend (peak on 5 June, 50%+ above baseline), device split
+Acquisition & Channel Performance	Where traffic comes from, and which channels actually convert
+Engagement	Pages per session, duration, bounce rate, most-browsed categories
+Conversion	The booking funnel and where visitors drop out
+Retention	New vs. returning visitors and their conversion gap
+📁 Repository Structure
+├── Dnata_Webquerydata.sql      # Profiling, staging, sessionization, star-schema build
+├── Dnata_dashboard.pbix        # Power BI report (data model + 5 report pages)
+└── ABC_Holidays_Case_Study.pptx # Presentation: assumptions, model, insights, recommendations
+🚀 How to Reproduce
+Load the raw clickstream into SQL Server as WebTrackingData (database: Dnata).
+Run Dnata_Webquerydata.sql top to bottom. It profiles the data, stages it, sessionizes it, then builds the dimension and fact tables.
+Open Dnata_dashboard.pbix in Power BI Desktop and point the data source at your SQL Server instance.
+⚠️ Assumptions & Limitations
+Small window. 8 days from a sample of a much larger production dataset, so findings are directional, not definitive.
+Very few conversions. Only 12 bookings in total, so channel-level conversion rates rest on thin evidence. The "zero conversions from paid" finding is a signal to watch, not proof.
+Data quality notes. 202 page views have CookieID = 0 (kept, as their impact on visitor counts is immaterial). One session shows two "Booking-Complete" views (a refresh or two real bookings; the impact is under 0.02% of sessions). Page types are inferred rather than taken from an official data dictionary.
+🛠️ Tech Stack
+
+SQL Server (T-SQL) · window functions · CTEs · Power BI · DAX · star-schema modeling · funnel & retention analysis
+
+
+👤 Author
+Nithya K S — Data Analysis Support Officer 🔗 Add your LinkedIn / portfolio link here
+
+⭐ If you found this useful, consider starring the repo!
